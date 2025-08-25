@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net6.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- NuGet metadata -->
+    <PackageId>PTK.OpaqueIframeProxy</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Shadiq</Authors>
+    <Company>Pertamina Transkontinental</Company>
+    <Description>Opaque proxy for embedding remote HTML pages via iframe, with flexible routing templates.</Description>
+    <PackageTags>aspnetcore;iframe;proxy;embed;html;image;security</PackageTags>
+
+    <!-- Metadata penting agar paket terhubung ke repo GitHub -->
+    <RepositoryUrl>https://github.com/shdiqq/PTK.OpaqueIframeProxy</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/shdiqq/PTK.OpaqueIframeProxy</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <!-- Referensi ASP.NET Core -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+</Project>
