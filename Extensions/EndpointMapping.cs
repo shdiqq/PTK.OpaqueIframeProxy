@@ -44,7 +44,8 @@ namespace PTK.OpaqueIframeProxy.Extensions
             ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
             ctx.Response.ContentType = r.ContentType;
             await ctx.Response.WriteAsync(r.Html, ct);
-            return Results.Empty;
+
+            return Results.StatusCode(StatusCodes.Status200OK);
           });
 
         // Gambar endpoint — tulis langsung ke Response.Body (delegate style manual)
@@ -74,7 +75,7 @@ namespace PTK.OpaqueIframeProxy.Extensions
               await copy.DisposeAsync(); // aman: hanya IDisposable di dalam
             }
 
-            return Results.Empty;
+            return Results.StatusCode(StatusCodes.Status200OK);
           });
       }
 
