@@ -1,30 +1,36 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net6.0</TargetFrameworks>
+    <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
     <!-- NuGet metadata -->
     <PackageId>PTK.OpaqueIframeProxy</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>              <!-- ⬅️ bump -->
     <Authors>Shadiq</Authors>
     <Company>Pertamina Transkontinental</Company>
     <Description>Opaque proxy for embedding remote HTML pages via iframe, with flexible routing templates.</Description>
     <PackageTags>aspnetcore;iframe;proxy;embed;html;image;security</PackageTags>
 
-    <!-- Metadata penting agar paket terhubung ke repo GitHub -->
+    <!-- Repo metadata -->
     <RepositoryUrl>https://github.com/shdiqq/PTK.OpaqueIframeProxy</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/shdiqq/PTK.OpaqueIframeProxy</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
+    <!-- Docs & validation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EnablePackageValidation>true</EnablePackageValidation>
+
+    <!-- Versi assembly agar kelihatan naik di log -->
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <!-- (opsional) kalau mau set explicit informational version -->
+    <InformationalVersion>1.0.1</InformationalVersion>
   </PropertyGroup>
 
-  <!-- Referensi ASP.NET Core -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
