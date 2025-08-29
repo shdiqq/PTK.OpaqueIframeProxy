@@ -2,36 +2,20 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PTK.OpaqueIframeProxy.Interfaces;
 using PTK.OpaqueIframeProxy.Options;
 
 namespace PTK.OpaqueIframeProxy.Extensions
 {
-  /// <summary>
-  /// Ekstensi untuk mendaftarkan endpoint HTML &amp; gambar
-  /// sesuai konfigurasi <see cref="OpaqueProxyOptions"/>.
-  /// </summary>
+  /// <summary>Ekstensi untuk mendaftarkan endpoint HTML &amp; gambar.</summary>
   public static class EndpointMapping
   {
-    /// <summary>
-    /// Mendaftarkan endpoint Opaque Content Proxy sesuai template route
-    /// yang diatur di <see cref="OpaqueProxyOptions.Routes"/>.
-    /// </summary>
-    /// <param name="endpoints">Builder endpoint yang sedang digunakan.</param>
-    /// <returns>
-    /// Objek <see cref="IEndpointRouteBuilder"/> yang sama,
-    /// untuk memudahkan chaining konfigurasi.
-    /// </returns>
-    /// <remarks>
-    /// Pastikan method ini dipanggil setelah <c>UseRouting()</c>.
-    /// </remarks>
+    /// <summary>Mendaftarkan endpoint sesuai <see cref="OpaqueProxyOptions.Routes"/>.</summary>
     public static IEndpointRouteBuilder MapOpaqueContentProxy(this IEndpointRouteBuilder endpoints)
     {
       var opt = endpoints.ServiceProvider.GetRequiredService<IOptions<OpaqueProxyOptions>>().Value;
 
-      // substitusi {basePath} + normalisasi leading slash
       static string Resolve(string? tpl, string basePath)
       {
         var s = (tpl ?? "/").Replace("{basePath}", basePath, StringComparison.OrdinalIgnoreCase);
@@ -39,17 +23,32 @@ namespace PTK.OpaqueIframeProxy.Extensions
       }
 
       var basePath = (opt.BasePath ?? "proxy").Trim('/');
-      var htmlRoute = Resolve(opt.Routes.HtmlTokenTemplate, basePath); // harus punya {token}
-      var imgRoute = Resolve(opt.Routes.ImageSlugTemplate, basePath); // harus punya {slug}
+      var htmlRoute = Resolve(opt.Routes.HtmlTokenTemplate, basePath);
+      var imgRoute = Resolve(opt.Routes.ImageSlugTemplate, basePath);
 
       if (opt.Routes.AutoMapEndpoints)
       {
-        // =========================
-        // HTML endpoint — manual write (tanpa IResult)
-        // =========================
-        endpoints.MapGet(htmlRoute,
-          async (string token, IOpaqueContentProxyService svc, HttpContext ctx, CancellationToken ct) =>
+        var htmlPattern = htmlRoute;
+        var qIdx = htmlPattern.IndexOf('?', StringComparison.Ordinal);
+        if (qIdx >= 0) htmlPattern = htmlPattern[..qIdx];
+        htmlPattern = htmlPattern.Replace("{token}", "{token?}", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(htmlPattern)) htmlPattern = "/";
+
+        endpoints.MapGet(htmlPattern,
+          async (HttpContext ctx, IOpaqueContentProxyService svc, CancellationToken ct) =>
           {
+            string? token = ctx.GetRouteValue("token") as string;
+
+            if (string.IsNullOrEmpty(token) && ctx.Request.Query.TryGetValue("token", out var qv))
+              token = qv.ToString();
+
+            if (string.IsNullOrEmpty(token))
+            {
+              ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+              await ctx.Response.WriteAsync("Missing token", ct);
+              return;
+            }
+
             var r = await svc.GetHtmlByTokenAsync(token, ct);
 
             if (r.NoCache)
@@ -57,32 +56,19 @@ namespace PTK.OpaqueIframeProxy.Extensions
 
             ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
             ctx.Response.ContentType = r.ContentType;
-
             await ctx.Response.WriteAsync(r.Html, ct);
           });
 
-        // =========================
-        // Gambar endpoint — manual streaming total (tanpa IResult)
-        // =========================
         endpoints.MapGet(imgRoute,
-        async (string slug, IOpaqueContentProxyService svc, HttpContext ctx, CancellationToken ct) =>
-        {
-          var log = ctx.RequestServices
-          .GetRequiredService<ILoggerFactory>()
-          .CreateLogger("OpaqueProxy");
-
-          log.LogInformation("IMG handler start: slug={Slug}", slug);
-
-          var copy = await svc.PrepareImageCopyAsync(slug, preferOriginal: false, ct);
-          if (copy is null)
+          async (string slug, IOpaqueContentProxyService svc, HttpContext ctx, CancellationToken ct) =>
           {
-            log.LogWarning("IMG not found: slug={Slug}", slug);
-            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
-          }
+            var copy = await svc.PrepareImageCopyAsync(slug, preferOriginal: false, ct);
+            if (copy is null)
+            {
+              ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+              return;
+            }
 
-          try
-          {
             if (copy.ETag is not null) ctx.Response.Headers.ETag = copy.ETag;
             if (copy.MaxAge is not null)
               ctx.Response.Headers.CacheControl = $"public, max-age={(int)copy.MaxAge.Value.TotalSeconds}, immutable";
@@ -95,26 +81,12 @@ namespace PTK.OpaqueIframeProxy.Extensions
 
             ctx.Response.Headers.Remove("Content-Length");
             ctx.Response.ContentLength = null;
-
             await ctx.Response.StartAsync(ct);
-            await copy.CopyToAsync(ctx.Response.Body, ct);
 
-            log.LogInformation("IMG stream finished: slug={Slug}", slug);
-          }
-          catch (OperationCanceledException)
-          {
-            log.LogWarning("IMG stream aborted by client: slug={Slug}", slug);
-          }
-          catch (Exception ex)
-          {
-            log.LogError(ex, "IMG stream error: slug={Slug}", slug);
-            throw;
-          }
-          finally
-          {
-            await copy.DisposeAsync();
-          }
-        });
+            try { await copy.CopyToAsync(ctx.Response.Body, ct); }
+            catch (OperationCanceledException) { }
+            finally { await copy.DisposeAsync(); }
+          });
       }
 
       return endpoints;

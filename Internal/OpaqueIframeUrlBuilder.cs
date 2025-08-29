@@ -51,14 +51,15 @@ namespace PTK.OpaqueIframeProxy.Internal
       };
 
       var protectedString = _protector.Protect(JsonSerializer.Serialize(payload));
-      var tokenForRoute = Base64Url.Encode(protectedString);
+      var tokenB64Url = Base64Url.Encode(protectedString);
 
       var basePath = (_opt.BasePath ?? "proxy").Trim('/');
-      var tpl = _opt.Routes.HtmlTokenTemplate ?? "/{basePath}/t/{token}";
-      var path = tpl.Replace("{basePath}", basePath, StringComparison.OrdinalIgnoreCase)
-                    .Replace("{token}", tokenForRoute, StringComparison.OrdinalIgnoreCase);
-      if (!path.StartsWith('/')) path = "/" + path;
-      return path;
+      var tpl = _opt.Routes.HtmlTokenTemplate ?? "/{basePath}/t?token={token}";
+      var url = tpl.Replace("{basePath}", basePath, StringComparison.OrdinalIgnoreCase)
+                   .Replace("{token}", tokenB64Url, StringComparison.OrdinalIgnoreCase);
+
+      if (!url.StartsWith('/')) url = "/" + url;
+      return url;
     }
   }
 }
