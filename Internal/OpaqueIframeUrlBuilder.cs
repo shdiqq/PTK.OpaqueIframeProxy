@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
@@ -6,6 +7,20 @@ using PTK.OpaqueIframeProxy.Options;
 
 namespace PTK.OpaqueIframeProxy.Internal
 {
+  internal static class Base64Url
+  {
+    public static string Encode(string s)
+      => Convert.ToBase64String(Encoding.UTF8.GetBytes(s))
+                .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    public static string Decode(string u)
+    {
+      var s = u.Replace('-', '+').Replace('_', '/');
+      switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
+      return Encoding.UTF8.GetString(Convert.FromBase64String(s));
+    }
+  }
+
   internal sealed class OpaqueIframeUrlBuilder : IOpaqueIframeUrlBuilder
   {
     private readonly OpaqueProxyOptions _opt;
@@ -22,27 +37,26 @@ namespace PTK.OpaqueIframeProxy.Internal
       if (!Uri.TryCreate(originIframeSrc, UriKind.Absolute, out var uri))
         throw new ArgumentException("originIframeSrc harus URL absolut.", nameof(originIframeSrc));
 
-      // whitelist host HTML (sudah ada)
       if (!_opt.AllowedHtmlHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))
         throw new InvalidOperationException($"Host '{uri.Host}' tidak diizinkan.");
 
       var now = DateTimeOffset.UtcNow;
       var payload = new
       {
-        ver = 1, // <-- tambahkan versi skema
+        ver = 1,
         origin = originIframeSrc,
         iat = now.ToUnixTimeSeconds(),
         exp = now.Add(ttl ?? _opt.HtmlTokenLifetime).ToUnixTimeSeconds(),
         extra = extraClaims
       };
 
-      var token = _protector.Protect(JsonSerializer.Serialize(payload));
+      var protectedString = _protector.Protect(JsonSerializer.Serialize(payload));
+      var tokenForRoute = Base64Url.Encode(protectedString);
 
-      // rakit URL sesuai template (sudah ada)
       var basePath = (_opt.BasePath ?? "proxy").Trim('/');
       var tpl = _opt.Routes.HtmlTokenTemplate ?? "/{basePath}/t/{token}";
       var path = tpl.Replace("{basePath}", basePath, StringComparison.OrdinalIgnoreCase)
-                    .Replace("{token}", Uri.EscapeDataString(token), StringComparison.OrdinalIgnoreCase);
+                    .Replace("{token}", tokenForRoute, StringComparison.OrdinalIgnoreCase);
       if (!path.StartsWith('/')) path = "/" + path;
       return path;
     }

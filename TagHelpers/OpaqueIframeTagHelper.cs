@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using PTK.OpaqueIframeProxy.Interfaces;
 
@@ -15,6 +17,14 @@ namespace PTK.OpaqueIframeProxy.TagHelpers
 
     /// <summary>DI: builder URL proxy.</summary>
     public OpaqueIframeTagHelper(IOpaqueIframeUrlBuilder builder) => _builder = builder;
+
+    /// <summary>
+    /// Context view saat rendering Razor, otomatis diisi oleh ASP.NET Core.
+    /// Dipakai untuk membaca <c>HttpContext.Request.PathBase</c>
+    /// sehingga <c>src</c> iframe bisa diprefix jika aplikasi tidak di-root.
+    /// </summary>
+    [ViewContext]
+    public ViewContext? ViewContext { get; set; }
 
     /// <summary>URL absolut halaman origin yang akan di-embed.</summary>
     [HtmlAttributeName("src")]
@@ -54,6 +64,12 @@ namespace PTK.OpaqueIframeProxy.TagHelpers
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
       var proxied = _builder.Build(Source, TtlOverride);
+
+      // Prefix PathBase jika aplikasi tidak di root
+      var pathBase = ViewContext?.HttpContext?.Request.PathBase.Value ?? string.Empty;
+      if (!string.IsNullOrEmpty(pathBase) && proxied.StartsWith("/"))
+        proxied = pathBase + proxied;
+
       output.TagName = "iframe";
       output.Attributes.SetAttribute("src", proxied);
       if (!string.IsNullOrWhiteSpace(Width)) output.Attributes.SetAttribute("width", Width);

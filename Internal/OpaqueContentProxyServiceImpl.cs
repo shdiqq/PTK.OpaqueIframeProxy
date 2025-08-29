@@ -42,13 +42,22 @@ namespace PTK.OpaqueIframeProxy.Internal
       string json;
       try
       {
-        json = _protector.Unprotect(Uri.UnescapeDataString(token));
+        try
+        {
+          var protectedString = Base64Url.Decode(token);
+          json = _protector.Unprotect(protectedString);
+        }
+        catch
+        {
+          json = _protector.Unprotect(Uri.UnescapeDataString(token));
+        }
       }
       catch (Exception ex)
       {
         _log?.LogWarning(ex, "Invalid/Corrupted token");
         return new HtmlResult("<html><body>Invalid token</body></html>");
       }
+
 
       using var docPayload = JsonDocument.Parse(json);
       var root = docPayload.RootElement;
