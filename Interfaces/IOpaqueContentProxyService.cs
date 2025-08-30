@@ -1,3 +1,8 @@
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace PTK.OpaqueIframeProxy.Interfaces
 {
   /// <summary>
@@ -78,8 +83,12 @@ namespace PTK.OpaqueIframeProxy.Interfaces
     /// <summary>Bersihkan resource sumber.</summary>
     public ValueTask DisposeAsync()
     {
-      _owner?.Dispose(); // HttpResponseMessage hanya IDisposable
+      _owner?.Dispose();
+#if NET5_0_OR_GREATER
       return ValueTask.CompletedTask;
+#else
+  return default;
+#endif
     }
   }
 }

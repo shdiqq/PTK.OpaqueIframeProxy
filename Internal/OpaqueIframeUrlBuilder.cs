@@ -1,9 +1,14 @@
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
+
 using PTK.OpaqueIframeProxy.Interfaces;
 using PTK.OpaqueIframeProxy.Options;
+
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Text;
+using System.Text.Json;
 
 namespace PTK.OpaqueIframeProxy.Internal
 {

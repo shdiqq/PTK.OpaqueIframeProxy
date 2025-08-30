@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;net6.0;net7.0;net8.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
     <!-- NuGet metadata -->
     <PackageId>PTK.OpaqueIframeProxy</PackageId>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Authors>Shadiq</Authors>
     <Company>Pertamina Transkontinental</Company>
     <Description>Opaque proxy for embedding remote HTML pages via iframe, with flexible routing templates.</Description>
@@ -25,13 +25,20 @@
     <EnablePackageValidation>true</EnablePackageValidation>
 
     <!-- Versi assembly agar kelihatan naik di log -->
-    <AssemblyVersion>1.0.3.0</AssemblyVersion>
-    <FileVersion>1.0.3.0</FileVersion>
+    <AssemblyVersion>1.0.4.0</AssemblyVersion>
+    <FileVersion>1.0.4.0</FileVersion>
     <!-- (opsional) kalau mau set explicit informational version -->
-    <InformationalVersion>1.0.3</InformationalVersion>
+    <InformationalVersion>1.0.4</InformationalVersion>
+  </PropertyGroup>
+
+  <!-- Set khusus 3.1: kunci ke C# 9 & matikan implicit usings agar tidak “ajaib” -->
+  <PropertyGroup Condition="'$(TargetFramework)'=='netcoreapp3.1'">
+    <LangVersion>9.0</LangVersion>  <!-- record OK di 3.1 -->
+    <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Shared framework ASP.NET Core (berlaku 3.1 sampai 8.0) -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

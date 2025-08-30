@@ -1,12 +1,21 @@
-using System.Text;
-using System.Text.Json;
 using HtmlAgilityPack;
+
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+
 using PTK.OpaqueIframeProxy.Helpers;
 using PTK.OpaqueIframeProxy.Interfaces;
 using PTK.OpaqueIframeProxy.Options;
+
+using System;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PTK.OpaqueIframeProxy.Internal
 {
@@ -58,7 +67,6 @@ namespace PTK.OpaqueIframeProxy.Internal
         return new HtmlResult("<html><body>Invalid token</body></html>");
       }
 
-
       using var docPayload = JsonDocument.Parse(json);
       var root = docPayload.RootElement;
 
@@ -95,7 +103,11 @@ namespace PTK.OpaqueIframeProxy.Internal
       if (string.IsNullOrWhiteSpace(contentType))
         contentType = "text/html; charset=utf-8";
 
+#if NET5_0_OR_GREATER
       var html = await resp.Content.ReadAsStringAsync(ct);
+#else
+      var html = await resp.Content.ReadAsStringAsync();
+#endif
 
       if (Encoding.UTF8.GetByteCount(html) > MaxHtmlBytes)
       {
@@ -172,7 +184,12 @@ namespace PTK.OpaqueIframeProxy.Internal
 
       var contentTypeImg = resp.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
       var etag = resp.Headers.ETag?.ToString();
+
+#if NET5_0_OR_GREATER
       var networkStream = await resp.Content.ReadAsStreamAsync(ct);
+#else
+      var networkStream = await resp.Content.ReadAsStreamAsync();
+#endif
 
       if (!contentLength.HasValue)
       {
@@ -235,13 +252,17 @@ namespace PTK.OpaqueIframeProxy.Internal
         return null;
       }
 
-      // Delegate penyalin (tanpa await using). Kita dispose resp secara eksplisit di finally.
       async Task Copy(Stream destination, CancellationToken token)
       {
         Stream? source = null;
         try
         {
+
+#if NET5_0_OR_GREATER
           source = await content.ReadAsStreamAsync(token);
+#else
+          source = await content.ReadAsStreamAsync();
+#endif
 
           if (!length.HasValue)
           {

@@ -29,20 +29,43 @@ Mendukung tokenized URL, whitelist host, slug HMAC, serta TagHelper Razor untuk 
 - ⚙️ **Configurable**: TTL token, route template, size limits.
 - 🖼️ **Razor TagHelper**: `<opaque-iframe>` siap pakai.
 - 📦 **NuGet-ready**: paket internal dengan struktur rapi.
+- 🧩 **Multi-TFM**: mendukung .NET Core 3.1, 6, 7, 8.
 
 ---
 
 ## A) Installation (Step-by-step)
+
 1. Tambahkan package ke project:
    ```powershell
    dotnet add package PTK.OpaqueIframeProxy
    ```
-2. Di `Program.cs`:
+
+2. **Jika aplikasi .NET 6+ (Program.cs minimal hosting):**
    ```csharp
    builder.Services.AddOpaqueContentProxy(builder.Configuration);
    var app = builder.Build();
    app.MapOpaqueContentProxy();
    app.Run();
+   ```
+
+3. **Jika aplikasi .NET Core 3.1 (Startup.cs):**
+   ```csharp
+   public void ConfigureServices(IServiceCollection services)
+   {
+       services.AddControllersWithViews();
+       services.AddOpaqueContentProxy(Configuration);
+   }
+
+   public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+   {
+       if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
+       app.UseRouting();
+       app.UseEndpoints(endpoints =>
+       {
+           endpoints.MapOpaqueContentProxy();
+           endpoints.MapDefaultControllerRoute();
+       });
+   }
    ```
 
 ---
@@ -74,6 +97,7 @@ Tambahkan di `appsettings.json`:
 ---
 
 ## C) Usage Scenarios (Pick what fits your app)
+
 - **Razor View**:
   ```razor
   <opaque-iframe src="https://reports.internal.corp/dashboard?id=42"
@@ -83,7 +107,8 @@ Tambahkan di `appsettings.json`:
                  referrerpolicy="no-referrer">
   </opaque-iframe>
   ```
-- **Manual URL building** (jika tidak pakai TagHelper):
+
+- **Manual URL building**:
   ```csharp
   var builder = sp.GetRequiredService<IOpaqueIframeUrlBuilder>();
   var url = builder.Build("https://reports.internal.corp/dashboard?id=42");
@@ -122,6 +147,10 @@ Tambahkan di `appsettings.json`:
 ## H) Compatibility Matrix
 - ✅ .NET 8.0 (direkomendasikan)
 - ✅ .NET 7.0 (uji dasar)
+- ✅ .NET 6.0 (LTS)
+- ✅ .NET Core 3.1 (EOL, supported dengan catatan:  
+  - menggunakan C# 9 record dengan shim `IsExternalInit`  
+  - endpoint mapping memakai `RequestDelegate` lama & header diakses via indexer)
 - ❌ .NET Framework (tidak didukung)
 
 ---
@@ -148,7 +177,10 @@ dotnet nuget push bin/Release/PTK.OpaqueIframeProxy.*.nupkg -s <FEED_URL> -k <TO
 A: Tidak. Hanya host yang ada di `AllowedHtmlHosts` & `AllowedImageHosts`.  
 
 **Q: Apa beda TagHelper vs manual URL?**  
-A: TagHelper memudahkan Razor; manual URL builder untuk backend code.
+A: TagHelper memudahkan Razor; manual URL builder untuk backend code.  
+
+**Q: Kenapa masih support .NET Core 3.1 padahal EOL?**  
+A: Untuk kompatibilitas sistem lama. Direkomendasikan upgrade ke .NET 6/8 LTS.
 
 ---
 

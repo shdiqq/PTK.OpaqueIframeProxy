@@ -3,8 +3,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+
 using PTK.OpaqueIframeProxy.Interfaces;
 using PTK.OpaqueIframeProxy.Options;
+
+using System;
+using System.Threading;
 
 namespace PTK.OpaqueIframeProxy.Extensions
 {
@@ -34,11 +38,12 @@ namespace PTK.OpaqueIframeProxy.Extensions
         htmlPattern = htmlPattern.Replace("{token}", "{token?}", StringComparison.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(htmlPattern)) htmlPattern = "/";
 
+#if NET6_0_OR_GREATER
+        // Versi modern (punya parameter DI & binding langsung):contentReference[oaicite:8]{index=8}
         endpoints.MapGet(htmlPattern,
           async (HttpContext ctx, IOpaqueContentProxyService svc, CancellationToken ct) =>
           {
             string? token = ctx.GetRouteValue("token") as string;
-
             if (string.IsNullOrEmpty(token) && ctx.Request.Query.TryGetValue("token", out var qv))
               token = qv.ToString();
 
@@ -50,10 +55,7 @@ namespace PTK.OpaqueIframeProxy.Extensions
             }
 
             var r = await svc.GetHtmlByTokenAsync(token, ct);
-
-            if (r.NoCache)
-              ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
-
+            if (r.NoCache) ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
             ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
             ctx.Response.ContentType = r.ContentType;
             await ctx.Response.WriteAsync(r.Html, ct);
@@ -63,11 +65,7 @@ namespace PTK.OpaqueIframeProxy.Extensions
           async (string slug, IOpaqueContentProxyService svc, HttpContext ctx, CancellationToken ct) =>
           {
             var copy = await svc.PrepareImageCopyAsync(slug, preferOriginal: false, ct);
-            if (copy is null)
-            {
-              ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-              return;
-            }
+            if (copy is null) { ctx.Response.StatusCode = StatusCodes.Status404NotFound; return; }
 
             if (copy.ETag is not null) ctx.Response.Headers.ETag = copy.ETag;
             if (copy.MaxAge is not null)
@@ -81,12 +79,74 @@ namespace PTK.OpaqueIframeProxy.Extensions
 
             ctx.Response.Headers.Remove("Content-Length");
             ctx.Response.ContentLength = null;
-            await ctx.Response.StartAsync(ct);
 
+#if NET5_0_OR_GREATER
+            await ctx.Response.StartAsync(ct);
+#else
+            await ctx.Response.StartAsync();
+#endif
             try { await copy.CopyToAsync(ctx.Response.Body, ct); }
             catch (OperationCanceledException) { }
             finally { await copy.DisposeAsync(); }
           });
+#else
+
+        endpoints.MapGet(htmlPattern,
+          async context =>
+          {
+            var svc = context.RequestServices.GetRequiredService<IOpaqueContentProxyService>();
+            var ct  = context.RequestAborted;
+
+            string? token = context.GetRouteValue("token") as string;
+            if (string.IsNullOrEmpty(token) && context.Request.Query.TryGetValue("token", out var qv))
+              token = qv.ToString();
+
+            if (string.IsNullOrEmpty(token))
+            {
+              context.Response.StatusCode = StatusCodes.Status400BadRequest;
+              await context.Response.WriteAsync("Missing token", ct);
+              return;
+            }
+
+            var r = await svc.GetHtmlByTokenAsync(token, ct);
+            if (r.NoCache) context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            context.Response.ContentType = r.ContentType;
+            await context.Response.WriteAsync(r.Html, ct);
+          });
+
+        endpoints.MapGet(imgRoute,
+          async context =>
+          {
+            var svc = context.RequestServices.GetRequiredService<IOpaqueContentProxyService>();
+            var ct  = context.RequestAborted;
+
+            var slugObj = context.GetRouteValue("slug");
+            var slug = slugObj?.ToString();
+            if (string.IsNullOrEmpty(slug)) { context.Response.StatusCode = StatusCodes.Status400BadRequest; return; }
+
+            var copy = await svc.PrepareImageCopyAsync(slug, preferOriginal: false, ct);
+            if (copy is null) { context.Response.StatusCode = StatusCodes.Status404NotFound; return; }
+
+            if (copy.ETag is not null) context.Response.Headers["ETag"] = copy.ETag;
+            if (copy.MaxAge is not null)
+              context.Response.Headers["Cache-Control"] = $"public, max-age={(int)copy.MaxAge.Value.TotalSeconds}, immutable";
+            else
+              context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            context.Response.Headers["Accept-Ranges"] = "none";
+            context.Response.ContentType = copy.ContentType;
+
+            context.Response.Headers.Remove("Content-Length");
+            context.Response.ContentLength = null;
+
+            await context.Response.StartAsync();
+            try { await copy.CopyToAsync(context.Response.Body, ct); }
+            catch (OperationCanceledException) { }
+            finally { await copy.DisposeAsync(); }
+          });
+#endif
       }
 
       return endpoints;
