@@ -7,7 +7,7 @@
 
     <!-- NuGet metadata -->
     <PackageId>PTK.OpaqueIframeProxy</PackageId>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Authors>Shadiq</Authors>
     <Company>Pertamina Transkontinental</Company>
     <Description>Opaque proxy for embedding remote HTML pages via iframe, with flexible routing templates.</Description>
@@ -25,10 +25,10 @@
     <EnablePackageValidation>true</EnablePackageValidation>
 
     <!-- Versi assembly agar kelihatan naik di log -->
-    <AssemblyVersion>1.0.4.0</AssemblyVersion>
-    <FileVersion>1.0.4.0</FileVersion>
+    <AssemblyVersion>1.0.5.0</AssemblyVersion>
+    <FileVersion>1.0.5.0</FileVersion>
     <!-- (opsional) kalau mau set explicit informational version -->
-    <InformationalVersion>1.0.4</InformationalVersion>
+    <InformationalVersion>1.0.5</InformationalVersion>
   </PropertyGroup>
 
   <!-- Set khusus 3.1: kunci ke C# 9 & matikan implicit usings agar tidak “ajaib” -->

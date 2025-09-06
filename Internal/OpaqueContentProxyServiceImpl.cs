@@ -1,6 +1,7 @@
 using HtmlAgilityPack;
 
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -29,19 +30,22 @@ namespace PTK.OpaqueIframeProxy.Internal
     private readonly OpaqueProxyMapOptions _map;
     private readonly IDataProtector _protector;
     private readonly ILogger<OpaqueContentProxyServiceImpl>? _log;
+    private readonly IHttpContextAccessor _httpCtx;
 
     public OpaqueContentProxyServiceImpl(
         IHttpClientFactory http,
         IOptions<OpaqueProxyOptions> opt,
         IOptions<OpaqueProxyMapOptions> map,
         IDataProtectionProvider dp,
-        ILogger<OpaqueContentProxyServiceImpl>? log = null)
+        ILogger<OpaqueContentProxyServiceImpl>? log = null,
+        IHttpContextAccessor? httpCtx = null)
     {
       _http = http;
       _opt = opt.Value;
       _map = map.Value;
       _protector = dp.CreateProtector("PTK.OpaqueIframeProxy:html-token");
       _log = log;
+      _httpCtx = httpCtx ?? new HttpContextAccessor();
 
       Directory.CreateDirectory(_map.MapRoot);
     }
@@ -143,6 +147,13 @@ namespace PTK.OpaqueIframeProxy.Internal
           var imgUrl = tpl.Replace("{basePath}", basePath, StringComparison.OrdinalIgnoreCase)
                           .Replace("{slug}", slug, StringComparison.OrdinalIgnoreCase);
           if (!imgUrl.StartsWith('/')) imgUrl = "/" + imgUrl;
+
+          var pathBase = _httpCtx.HttpContext?.Request.PathBase.Value?.TrimEnd('/');
+          if (!string.IsNullOrEmpty(pathBase) &&
+              !imgUrl.StartsWith(pathBase!, StringComparison.OrdinalIgnoreCase))
+          {
+            imgUrl = pathBase + imgUrl;
+          }
 
           img.SetAttributeValue("src", imgUrl);
         }
